@@ -18,11 +18,11 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Weever
 
 The process for submitting a pull request is as follows:
 
-1.  **Fork the repository** and create your branch from `master`/`dev`.
+1.  **Fork the repository** and create your branch from `master`.
 2.  **Set up your development environment.** Ensure you have JDK 21 and run `./gradlew build` to confirm everything is working.
 3.  **Make your changes.** Please follow the coding style and conventions.
 4.  **Add your changes to the project.** Make sure the code builds successfully by running `./gradlew build` again.
-5.  **Open a Pull Request** to the `master`/`dev` branch. Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
+5.  **Open a Pull Request** to the `master` branch. Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
 
 ## Development Setup
 

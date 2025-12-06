@@ -31,7 +31,13 @@ object AnnotationUtils {
         val values = node.values ?: return ""
         for (i in 0 until values.size step 2) {
             if (values[i] == "at") {
-                val atNode = values[i + 1] as? AnnotationNode ?: continue
+                val rawAt = values[i + 1]
+                val atNode = if (rawAt is List<*>) {
+                    rawAt.firstOrNull() as? AnnotationNode
+                } else {
+                    rawAt as? AnnotationNode
+                } ?: continue
+
                 val atArgs = atNode.values ?: continue
                 for (j in 0 until atArgs.size step 2) {
                     if (atArgs[j] == subKey) {

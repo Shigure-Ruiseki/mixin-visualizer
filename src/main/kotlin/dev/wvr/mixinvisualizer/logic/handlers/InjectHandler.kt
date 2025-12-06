@@ -25,7 +25,7 @@ class InjectHandler : MixinHandler {
 
         for (ref in targets) {
             val targetMethod = TargetFinderUtils.findTargetMethodLike(targetClass, ref) ?: continue
-            val (startNode, endNode) = SliceHelper.getSliceRange(targetClass, targetMethod, annotation)
+            //val (startNode, endNode) = SliceHelper.getSliceRange(targetClass, targetMethod, annotation)
 
             val injectionData = CodeGenerationUtils.prepareCode(
                 sourceMethod,
@@ -41,10 +41,29 @@ class InjectHandler : MixinHandler {
                     targetMethod.tryCatchBlocks.addAll(injectionData.tryCatchBlocks)
                 }
 
-                "TAIL", "RETURN" -> {
+                "RETURN" -> {
+                    val returnNodes = mutableListOf<AbstractInsnNode>()
                     val iter = targetMethod.instructions.iterator()
                     while (iter.hasNext()) {
                         val insn = iter.next()
+                        if (insn.opcode in Opcodes.IRETURN..Opcodes.RETURN) {
+                            returnNodes.add(insn)
+                        }
+                    }
+
+                    for (insn in returnNodes) {
+                        val map = HashMap<LabelNode, LabelNode>()
+                        val code = AsmHelper.cloneInstructions(injectionData.instructions, map)
+                        val tcbs = AsmHelper.cloneTryCatchBlocks(injectionData.tryCatchBlocks, map)
+
+                        targetMethod.instructions.insertBefore(insn, code)
+                        targetMethod.tryCatchBlocks.addAll(tcbs)
+                    }
+                }
+
+                "TAIL" -> {
+                    var insn = targetMethod.instructions.last
+                    while (insn != null) {
                         if (insn.opcode in Opcodes.IRETURN..Opcodes.RETURN) {
                             val map = HashMap<LabelNode, LabelNode>()
                             val code = AsmHelper.cloneInstructions(injectionData.instructions, map)
@@ -52,7 +71,9 @@ class InjectHandler : MixinHandler {
 
                             targetMethod.instructions.insertBefore(insn, code)
                             targetMethod.tryCatchBlocks.addAll(tcbs)
+                            break
                         }
+                        insn = insn.previous
                     }
                 }
 

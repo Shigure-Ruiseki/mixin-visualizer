@@ -2,6 +2,7 @@ package dev.wvr.mixinvisualizer.logic
 
 import dev.wvr.mixinvisualizer.logic.asm.AsmHelper
 import dev.wvr.mixinvisualizer.logic.handlers.*
+import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.CommentHolder
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.*
 
@@ -21,17 +22,17 @@ class MixinTransformer {
     )
 
     fun transform(target: ClassNode, mixin: ClassNode) {
-        if (target.fields.none { it.name == "__mixin_fields_here__" }) {
-            target.fields.add(
-                FieldNode(
-                    Opcodes.ACC_PUBLIC,
-                    "__mixin_fields_here__",
-                    "Ljava/lang/String;",
-                    null,
-                    "Applied: ${mixin.name}"
-                )
-            )
-        }
+//        if (target.fields.none { it.name == "__mixin_fields_here__" }) {
+//            target.fields.add(
+//                FieldNode(
+//                    Opcodes.ACC_PUBLIC,
+//                    "__mixin_fields_here__",
+//                    "Ljava/lang/String;",
+//                    null,
+//                    "Applied: ${mixin.name}"
+//                )
+//            )
+//        }
 
         mergeUniqueMembers(target, mixin)
         mergeClinit(target, mixin)

@@ -323,6 +323,8 @@ object CodeGenerationUtils {
                 target.localVariables = ArrayList()
             }
             for (lvn in source.localVariables) {
+                if (lvn.index < targetArgSlotLimit) continue
+
                 val newStart = labelMap[lvn.start]
                 val newEnd = labelMap[lvn.end]
                 if (newStart != null && newEnd != null) {

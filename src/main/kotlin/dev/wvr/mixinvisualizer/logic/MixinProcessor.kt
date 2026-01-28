@@ -31,7 +31,7 @@ class MixinProcessor(private val project: Project) {
 
                 val targetNode = BytecodeUtils.readClassNode(targetBytes)
 
-                val mixinBytes = findCompiledBytecodeForSource(mixinPsiFile)
+                val mixinBytes = findBytecode(clazz)
                     ?: return@compute originalContent to "// PLEASE COMPILE THE PROJECT FIRST (Ctrl+F9)"
                 val mixinNode = BytecodeUtils.readClassNode(mixinBytes)
 
@@ -66,20 +66,27 @@ class MixinProcessor(private val project: Project) {
     private fun findBytecode(psiClass: PsiClass): ByteArray? {
         val vFile = psiClass.containingFile?.virtualFile ?: return null
         if (vFile.fileType.isBinary) return vFile.contentsToByteArray()
-        return findCompiledBytecodeForSource(psiClass.containingFile)
-    }
 
-    private fun findCompiledBytecodeForSource(psiFile: PsiFile): ByteArray? {
-        val vFile = psiFile.virtualFile ?: return null
         val module = ProjectRootManager.getInstance(project).fileIndex.getModuleForFile(vFile) ?: return null
         val compilerOutput = com.intellij.openapi.roots.CompilerModuleExtension.getInstance(module)?.compilerOutputPath
 
         if (compilerOutput != null) {
-            val pkg = (psiFile as? PsiJavaFile)?.packageName ?: ""
-            val relPath = pkg.replace('.', '/') + "/" + vFile.nameWithoutExtension + ".class"
+            val pkg = (psiClass.containingFile as? PsiClassOwner)?.packageName ?: ""
+            val binaryName = getBinaryName(psiClass)
+            val relPath = pkg.replace('.', '/') + "/" + binaryName + ".class"
             val file = File(compilerOutput.path, relPath)
             if (file.exists()) return file.readBytes()
         }
         return null
+    }
+
+    private fun getBinaryName(psiClass: PsiClass): String {
+        val parts = mutableListOf<String>()
+        var current: PsiClass? = psiClass
+        while (current != null) {
+            parts.add(current.name ?: "")
+            current = current.containingClass
+        }
+        return parts.reversed().joinToString("$")
     }
 }

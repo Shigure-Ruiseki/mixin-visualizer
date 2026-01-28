@@ -9,7 +9,7 @@
 ### Fixed
 
 - Fixed arg remapping
-- Removed debug field `__mixin_fields_here`
+- Removed debug field `__mixin_fields_here__`
 - Fixed TAIL handler in `@Inject`
 
 ## [0.1.0]

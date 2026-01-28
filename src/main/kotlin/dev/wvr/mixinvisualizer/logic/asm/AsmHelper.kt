@@ -11,10 +11,8 @@ object AsmHelper {
 
         var p = list.first
         while (p != null) {
-            if (p is LabelNode) {
-                if (!labels.containsKey(p)) {
-                    labels[p] = LabelNode()
-                }
+            if (p is LabelNode && !labels.containsKey(p)) {
+                labels[p] = LabelNode()
             }
             p = p.next
         }

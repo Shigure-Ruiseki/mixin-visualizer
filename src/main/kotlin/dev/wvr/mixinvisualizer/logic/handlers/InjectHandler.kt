@@ -3,7 +3,6 @@ package dev.wvr.mixinvisualizer.logic.handlers
 import dev.wvr.mixinvisualizer.logic.asm.AsmHelper
 import dev.wvr.mixinvisualizer.logic.util.AnnotationUtils
 import dev.wvr.mixinvisualizer.logic.util.CodeGenerationUtils
-import dev.wvr.mixinvisualizer.logic.util.SliceHelper
 import dev.wvr.mixinvisualizer.logic.util.TargetFinderUtils
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.*

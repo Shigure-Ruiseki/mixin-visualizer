@@ -7,6 +7,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.LogicalPosition
 import com.intellij.openapi.editor.ScrollType
@@ -15,11 +16,13 @@ import com.intellij.openapi.fileEditor.FileEditorState
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiTreeChangeAdapter
 import com.intellij.psi.PsiTreeChangeEvent
 import com.intellij.ui.components.JBLoadingPanel
+import com.intellij.util.Alarm
 import dev.wvr.mixinvisualizer.lang.BytecodeFileType
 import dev.wvr.mixinvisualizer.logic.MixinCompilationTopic
 import dev.wvr.mixinvisualizer.logic.MixinProcessor
@@ -38,6 +41,10 @@ class MixinPreviewEditor(
 
     private val processor = MixinProcessor(project)
 
+    private val updateAlarm = Alarm(Alarm.ThreadToUse.SWING_THREAD, this)
+    private var isVisible = false
+    private var isDirty = true
+
     private var showBytecode = false
 
     private var pendingScrollTarget: String? = null
@@ -51,7 +58,7 @@ class MixinPreviewEditor(
         PsiManager.getInstance(project).addPsiTreeChangeListener(object : PsiTreeChangeAdapter() {
             override fun childrenChanged(event: PsiTreeChangeEvent) {
                 if (event.file?.virtualFile == file) {
-                    refresh()
+                    scheduleRefresh()
                 }
             }
         }, this)
@@ -59,13 +66,37 @@ class MixinPreviewEditor(
         val connection = project.messageBus.connect(this)
         connection.subscribe(MixinCompilationTopic.TOPIC, object : MixinCompilationTopic {
             override fun onCompilationFinished() {
-                ApplicationManager.getApplication().invokeLater {
-                    refresh()
-                }
+                scheduleRefresh(immediate = true)
             }
         })
 
-        refresh()
+        scheduleRefresh(immediate = true)
+    }
+
+    private fun scheduleRefresh(immediate: Boolean = false) {
+        if (project.isDisposed) return
+
+        isDirty = true
+        updateAlarm.cancelAllRequests()
+
+        val delay = if (immediate) 0 else 500
+
+        updateAlarm.addRequest({
+            if (isVisible && !project.isDisposed) {
+                refresh()
+            }
+        }, delay, ModalityState.defaultModalityState())
+    }
+
+    override fun selectNotify() {
+        isVisible = true
+        if (isDirty) {
+            scheduleRefresh(immediate = true)
+        }
+    }
+
+    override fun deselectNotify() {
+        isVisible = false
     }
 
     fun scrollToMethod(methodName: String) {
@@ -77,7 +108,9 @@ class MixinPreviewEditor(
         val group = DefaultActionGroup()
 
         val refreshAction = object : AnAction("Refresh", "Reload Mixin changes", AllIcons.Actions.Refresh) {
-            override fun actionPerformed(e: AnActionEvent) = refresh()
+            override fun actionPerformed(e: AnActionEvent) {
+                scheduleRefresh(immediate = true)
+            }
         }
 
         val toggleAction = object :
@@ -85,7 +118,7 @@ class MixinPreviewEditor(
             override fun isSelected(e: AnActionEvent) = showBytecode
             override fun setSelected(e: AnActionEvent, state: Boolean) {
                 showBytecode = state
-                refresh()
+                scheduleRefresh(immediate = true)
             }
         }
 
@@ -98,19 +131,25 @@ class MixinPreviewEditor(
     }
 
     private fun refresh() {
+        if (project.isDisposed || !file.isValid) return
         val psi = PsiManager.getInstance(project).findFile(file) ?: return
 
+        isDirty = false
         loadingPanel.startLoading()
 
         ApplicationManager.getApplication().executeOnPooledThread {
+            if (project.isDisposed) return@executeOnPooledThread
+
             val (orig, trans) = DumbService.getInstance(project).runReadActionInSmartMode<Pair<String, String>> {
                 processor.process(psi, showBytecode)
             }
 
-            ApplicationManager.getApplication().invokeLater {
-                updateDiff(orig, trans)
-                loadingPanel.stopLoading()
-            }
+            ApplicationManager.getApplication().invokeLater({
+                if (!project.isDisposed) {
+                    updateDiff(orig, trans)
+                    loadingPanel.stopLoading()
+                }
+            }, ModalityState.defaultModalityState())
         }
     }
 
@@ -128,9 +167,7 @@ class MixinPreviewEditor(
         val request = SimpleDiffRequest("Mixin Diff", content1, content2, "Target (Original)", "Target (Injected)")
         diffPanel.setRequest(request)
 
-        ApplicationManager.getApplication().invokeLater {
-            performScroll()
-        }
+        performScroll()
     }
 
     private fun performScroll() {
@@ -175,6 +212,6 @@ class MixinPreviewEditor(
         Disposer.dispose(diffPanel)
     }
 
-    override fun <T> getUserData(key: com.intellij.openapi.util.Key<T>) = null
-    override fun <T> putUserData(key: com.intellij.openapi.util.Key<T>, v: T?) {}
+    override fun <T> getUserData(key: Key<T>) = null
+    override fun <T> putUserData(key: Key<T>, v: T?) {}
 }
